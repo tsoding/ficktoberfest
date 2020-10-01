@@ -201,6 +201,5 @@ mainWithArgs (tokenFile:_) = do
   pollLoop github (Owner "tsoding") Nothing Nothing
 mainWithArgs _ = error "Usage: ficktoberfest <tokenFile>"
 
--- entry point
 main :: IO ()
 main = getArgs >>= mainWithArgs
