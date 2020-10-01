@@ -198,7 +198,7 @@ mainWithArgs :: [String] -> IO ()
 mainWithArgs (tokenFile:_) = do
   github <- newGithub tokenFile
   putStrLn "Waiting for Pull Requests..."
-  pollLoop github (Owner "rexim") Nothing Nothing
+  pollLoop github (Owner "tsoding") Nothing Nothing
 mainWithArgs _ = error "Usage: ficktoberfest <tokenFile>"
 
 -- entry point
