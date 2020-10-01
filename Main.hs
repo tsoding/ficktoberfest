@@ -21,10 +21,31 @@ import Data.Char
 import Control.Concurrent
 import Control.Applicative
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Vector as V
 
 newtype GithubToken = GithubToken T.Text
-newtype Owner = Owner T.Text
-newtype Repo = Repo T.Text
+
+newtype Owner =
+  Owner T.Text
+  deriving (Show)
+
+instance FromJSON Owner where
+  parseJSON (Object v) = Owner <$> v .: "login"
+
+data Repo = Repo
+  { repoName :: T.Text
+  , repoOwner :: Owner
+  } deriving (Show)
+
+instance FromJSON Repo where
+  parseJSON (Object v) = Repo <$> v .: "name" <*> v .: "owner"
+
+data Base = Base
+  { baseRepo :: Repo
+  } deriving (Show)
+
+instance FromJSON Base where
+  parseJSON (Object v) = Base <$> v .: "repo"
 
 data PullRequestEvent = PullRequestEvent
   { pullRequestEventId :: T.Text
@@ -48,12 +69,14 @@ data Pull = Pull
   , pullTitle :: T.Text
   , pullCreatedAt :: UTCTime
   , pullState :: T.Text
+  , pullBase :: Base
   } deriving (Show)
 
 instance FromJSON Pull where
   parseJSON (Object v) =
     Pull <$> v .: "url" <*> v .: "number" <*> v .: "title" <*> v .: "created_at" <*>
-    v .: "state"
+    v .: "state" <*>
+    v .: "base"
 
 data Github = Github
   { githubToken :: GithubToken
@@ -70,7 +93,13 @@ newtype ETag =
   ETag B.ByteString
   deriving (Show)
 
-pollEvents :: Github -> Owner -> Maybe ETag -> IO (Maybe ETag, Maybe Int, [PullRequestEvent])
+data Poller a = Poller
+  { pollerETag :: Maybe ETag
+  , pollerInterval :: Maybe Int
+  , pollerPayload :: a
+  } deriving Show
+
+pollEvents :: Github -> Owner -> Maybe ETag -> IO (Poller [PullRequestEvent])
 pollEvents github@Github { githubToken = GithubToken token
                          , githubManager = manager
                          } (Owner owner) etag = do
@@ -90,7 +119,7 @@ pollEvents github@Github { githubToken = GithubToken token
         fmap (\x -> read $ map (chr . fromIntegral) $ B.unpack x) $
         lookup "X-Poll-Interval" $ responseHeaders response
   case responseStatus response of
-    Status 304 _ -> return (etag', interval, [])
+    Status 304 _ -> return $ Poller etag' interval []
     Status 200 _ -> do
       events <- either error return $ eitherDecode $ responseBody response
       let pullRequestEvents =
@@ -103,15 +132,44 @@ pollEvents github@Github { githubToken = GithubToken token
                        Error _ -> error "Failed to parse"
                  _ -> Nothing)
               events
-      return (etag', interval, pullRequestEvents)
+      return $ Poller etag' interval pullRequestEvents
     Status x _ -> error $ printf "Got unexpected status %d" x
+
+invalidatePull :: Github -> Pull -> IO ()
+-- WTF IS THIS LINE HINDENT?!!
+invalidatePull Github {githubManager = manager, githubToken = GithubToken token} Pull { pullBase = Base {baseRepo = Repo { repoName = repo
+                                                                                                                         , repoOwner = Owner owner
+                                                                                                                         }}
+                                                                                      , pullNumber = number
+                                                                                      } = do
+  let url =
+        printf
+          "https://api.github.com/repos/%s/%s/issues/%d/labels"
+          owner
+          repo
+          number
+  let payload = object ["labels" .= Array (V.fromList ["invalid"])]
+  request <- parseRequest url
+  response <-
+    httpLbs
+      (request
+         { method = "POST"
+         , requestHeaders =
+             ("User-Agent", T.encodeUtf8 "Ficktoberfest") :
+             ("Authorization", T.encodeUtf8 $ "token " <> token) :
+             requestHeaders request
+         , requestBody = RequestBodyLBS $ encode payload
+         })
+      manager
+  print response
+  return ()
 
 pollLoop :: Github -> Owner -> Maybe T.Text -> Maybe ETag -> IO ()
 pollLoop github owner lastEventId etag = do
-  (etag', interval, events) <- pollEvents github owner etag
+  Poller etag' interval events <- pollEvents github owner etag
   let unprocessedEvents =
         filter (\x -> lastEventId < Just (pullRequestEventId x)) events
-  mapM print unprocessedEvents
+  mapM (invalidatePull github . pullRequestEventPull) unprocessedEvents
   maybe (return ()) (threadDelay . (* 1000000)) interval
   pollLoop
     github
@@ -119,15 +177,8 @@ pollLoop github owner lastEventId etag = do
     ((pullRequestEventId <$> listToMaybe unprocessedEvents) <|> lastEventId)
     etag'
 
-getPullRequests :: Github -> Owner -> Repo -> Int -> IO [Pull]
-getPullRequests github@Github { githubToken = GithubToken token
-                              , githubManager = manager
-                              } owner'@(Owner owner) repo'@(Repo repo) page = do
-  let url =
-        "https://api.github.com/repos/" <> owner <> "/" <> repo <>
-        "/pulls?state=closed&page=" <>
-        (T.pack $ show page)
-  request <- parseRequest $ T.unpack url
+githubRequest :: Github -> Request -> IO (Response Value)
+githubRequest Github {githubManager = manager, githubToken = GithubToken token} request = do
   response <-
     httpLbs
       (request
@@ -137,14 +188,11 @@ getPullRequests github@Github { githubToken = GithubToken token
              requestHeaders request
          })
       manager
-  let status = responseStatus response
-  when (status /= status200) $ error $ show status
-  prs <- either error return $ eitherDecode (responseBody response)
-  if length prs > 0
-    then do
-      nextPrs <- getPullRequests github owner' repo' (page + 1)
-      return $ prs ++ nextPrs
-    else return []
+  return $ either error id . eitherDecode <$> response
+
+resultToEither :: Result a -> Either String a
+resultToEither (Success x) = Right x
+resultToEither (Error s) = Left s
 
 mainWithArgs :: [String] -> IO ()
 mainWithArgs (tokenFile:_) = do
