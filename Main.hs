@@ -3,26 +3,27 @@
 
 module Main where
 
-import qualified Network.HTTP.Client.TLS as TLS
-import Network.HTTP.Client
-import Network.HTTP.Types.Status (Status(..))
-import System.Environment
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import qualified Data.Text.Encoding as T
-import Data.Time
+import Control.Applicative
+import Control.Concurrent
 import Data.Aeson
-import Text.Printf
-import Data.Maybe
+import Data.Aeson.Types
 import qualified Data.ByteString as B
 import Data.Char
-import Control.Concurrent
-import Control.Applicative
 import qualified Data.HashMap.Strict as HM
+import Data.Maybe
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as T
+import Data.Time
 import qualified Data.Vector as V
-import Data.Aeson.Types
+import Network.HTTP.Client
+import qualified Network.HTTP.Client.TLS as TLS
+import Network.HTTP.Types.Status (Status(..))
+import System.Environment
+import Text.Printf
 
-newtype GithubToken = GithubToken T.Text
+newtype GithubToken =
+  GithubToken T.Text
 
 newtype Owner =
   Owner T.Text
@@ -55,7 +56,8 @@ data PullRequestEvent = PullRequestEvent
   } deriving (Show)
 
 instance FromJSON PullRequestEvent where
-  parseJSON (Object v) = PullRequestEvent <$> v .: "id" <*> (v .: "payload" >>= (.: "pull_request"))
+  parseJSON (Object v) =
+    PullRequestEvent <$> v .: "id" <*> (v .: "payload" >>= (.: "pull_request"))
   parseJSON invalid = typeMismatch "PullRequestEvent" invalid
 
 data Event = Event
@@ -102,7 +104,7 @@ data Poller a = Poller
   { pollerETag :: !(Maybe ETag)
   , pollerInterval :: !(Maybe Int)
   , pollerPayload :: !a
-  } deriving Show
+  } deriving (Show)
 
 pollEvents :: Github -> Owner -> Maybe ETag -> IO (Poller [PullRequestEvent])
 pollEvents Github {githubToken = GithubToken token, githubManager = manager} (Owner owner) etag = do
