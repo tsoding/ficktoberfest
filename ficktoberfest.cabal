@@ -17,8 +17,16 @@ maintainer:          reximkut@gmail.com
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
+flag ci
+  description: Enable strict checks for CI build
+  default: False
+
 executable ficktoberfest
-  ghc-options:         -threaded -Wall
+  if flag(ci)
+    ghc-options:       -threaded -Wall -Werror
+  else
+    ghc-options:       -threaded -Wall
+
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
