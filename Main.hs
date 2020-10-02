@@ -203,7 +203,7 @@ mainWithArgs :: [String] -> IO ()
 mainWithArgs (tokenFile:_) = do
   github <- newGithub tokenFile
   putStrLn "Waiting for Pull Requests..."
-  -- TODO: The polling target is hardcoded
+  -- TODO(#7): The polling target is hardcoded
   pollLoop github (Owner "tsoding") Nothing Nothing
 mainWithArgs _ = error "Usage: ficktoberfest <tokenFile>"
 
