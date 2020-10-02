@@ -33,14 +33,14 @@ instance FromJSON Owner where
   parseJSON (Object v) = Owner <$> v .: "login"
 
 data Repo = Repo
-  { repoName :: T.Text
-  , repoOwner :: Owner
+  { repoName :: !T.Text
+  , repoOwner :: !Owner
   } deriving (Show)
 
 instance FromJSON Repo where
   parseJSON (Object v) = Repo <$> v .: "name" <*> v .: "owner"
 
-data Base = Base
+newtype Base = Base
   { baseRepo :: Repo
   } deriving (Show)
 
@@ -48,28 +48,28 @@ instance FromJSON Base where
   parseJSON (Object v) = Base <$> v .: "repo"
 
 data PullRequestEvent = PullRequestEvent
-  { pullRequestEventId :: T.Text
-  , pullRequestEventPull :: Pull
+  { pullRequestEventId :: !T.Text
+  , pullRequestEventPull :: !Pull
   } deriving (Show)
 
 instance FromJSON PullRequestEvent where
   parseJSON (Object v) = PullRequestEvent <$> v .: "id" <*> (v .: "payload" >>= (.: "pull_request"))
 
 data Event = Event
-  { eventType :: T.Text
-  , eventId :: T.Text
+  { eventType :: !T.Text
+  , eventId :: !T.Text
   } deriving (Show)
 
 instance FromJSON Event where
   parseJSON (Object v) = Event <$> v .: "type" <*> v .: "id"
 
 data Pull = Pull
-  { pullUrl :: T.Text
-  , pullNumber :: Int
-  , pullTitle :: T.Text
-  , pullCreatedAt :: UTCTime
-  , pullState :: T.Text
-  , pullBase :: Base
+  { pullUrl :: !T.Text
+  , pullNumber :: !Int
+  , pullTitle :: !T.Text
+  , pullCreatedAt :: !UTCTime
+  , pullState :: !T.Text
+  , pullBase :: !Base
   } deriving (Show)
 
 instance FromJSON Pull where
@@ -79,8 +79,8 @@ instance FromJSON Pull where
     v .: "base"
 
 data Github = Github
-  { githubToken :: GithubToken
-  , githubManager :: Manager
+  { githubToken :: !GithubToken
+  , githubManager :: !Manager
   }
 
 newGithub :: FilePath -> IO Github
@@ -94,9 +94,9 @@ newtype ETag =
   deriving (Show)
 
 data Poller a = Poller
-  { pollerETag :: Maybe ETag
-  , pollerInterval :: Maybe Int
-  , pollerPayload :: a
+  { pollerETag :: !(Maybe ETag)
+  , pollerInterval :: !(Maybe Int)
+  , pollerPayload :: !a
   } deriving Show
 
 pollEvents :: Github -> Owner -> Maybe ETag -> IO (Poller [PullRequestEvent])
