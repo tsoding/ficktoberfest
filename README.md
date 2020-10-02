@@ -25,3 +25,4 @@ The format of Token File is super simple. Just copy-past the token into an empty
 ```
 <token>
 ```
+
