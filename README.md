@@ -19,7 +19,7 @@ TBD
 
 ## Token File
 
-You can create a new token here: [https://github.com/settings/tokens]. Make sure to enable `Full control of private repositories` permission, the tool cannot assign labels without this permission.
+You can create a new token here: [https://github.com/settings/tokens](https://github.com/settings/tokens). Make sure to enable `Full control of private repositories` permission, the tool cannot assign labels without this permission.
 
 The format of Token File is super simple. Just copy-past the token into an empty file:
 ```
