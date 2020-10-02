@@ -5,14 +5,13 @@ module Main where
 
 import qualified Network.HTTP.Client.TLS as TLS
 import Network.HTTP.Client
-import Network.HTTP.Types.Status (Status(statusCode))
+import Network.HTTP.Types.Status (Status(..))
 import System.Environment
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Encoding as T
 import Data.Time
 import Data.Aeson
-import Network.HTTP.Types.Status
 import Text.Printf
 import Control.Monad
 import Data.Maybe
@@ -116,7 +115,7 @@ pollEvents github@Github { githubToken = GithubToken token
       manager
   let etag' = fmap ETag $ lookup "ETag" $ responseHeaders response
   let interval =
-        fmap (\x -> read $ map (chr . fromIntegral) $ B.unpack x) $
+        fmap (read . map (chr . fromIntegral) . B.unpack) $
         lookup "X-Poll-Interval" $ responseHeaders response
   case responseStatus response of
     Status 304 _ -> return $ Poller etag' interval []
@@ -126,7 +125,7 @@ pollEvents github@Github { githubToken = GithubToken token
             mapMaybe
               (\case
                  v'@(Object v)
-                   | (HM.lookup "type" v) == Just (String "PullRequestEvent") ->
+                   | HM.lookup "type" v == Just (String "PullRequestEvent") ->
                      case fromJSON v' of
                        Success x -> Just x
                        Error _ -> error "Failed to parse"
@@ -169,7 +168,7 @@ pollLoop github owner lastEventId etag = do
   Poller etag' interval events <- pollEvents github owner etag
   let unprocessedEvents =
         filter (\x -> lastEventId < Just (pullRequestEventId x)) events
-  mapM (invalidatePull github . pullRequestEventPull) unprocessedEvents
+  mapM_ (invalidatePull github . pullRequestEventPull) unprocessedEvents
   maybe (return ()) (threadDelay . (* 1000000)) interval
   pollLoop
     github
