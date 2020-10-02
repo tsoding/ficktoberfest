@@ -1,6 +1,6 @@
 # ficktoberfest
 
-A simple Haskell tool that silently marks all of the new PRs it recieves via notifications with "invalid" label.
+A simple Haskell tool that silently marks all of the new PRs it receives via notifications with "invalid" label.
 
 ## Quick Start
 
