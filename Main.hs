@@ -13,7 +13,6 @@ import qualified Data.Text.Encoding as T
 import Data.Time
 import Data.Aeson
 import Text.Printf
-import Control.Monad
 import Data.Maybe
 import qualified Data.ByteString as B
 import Data.Char
@@ -21,6 +20,7 @@ import Control.Concurrent
 import Control.Applicative
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Vector as V
+import Data.Aeson.Types
 
 newtype GithubToken = GithubToken T.Text
 
@@ -30,6 +30,7 @@ newtype Owner =
 
 instance FromJSON Owner where
   parseJSON (Object v) = Owner <$> v .: "login"
+  parseJSON invalid = typeMismatch "Owner" invalid
 
 data Repo = Repo
   { repoName :: !T.Text
@@ -38,6 +39,7 @@ data Repo = Repo
 
 instance FromJSON Repo where
   parseJSON (Object v) = Repo <$> v .: "name" <*> v .: "owner"
+  parseJSON invalid = typeMismatch "Repo" invalid
 
 newtype Base = Base
   { baseRepo :: Repo
@@ -45,6 +47,7 @@ newtype Base = Base
 
 instance FromJSON Base where
   parseJSON (Object v) = Base <$> v .: "repo"
+  parseJSON invalid = typeMismatch "Base" invalid
 
 data PullRequestEvent = PullRequestEvent
   { pullRequestEventId :: !T.Text
@@ -53,6 +56,7 @@ data PullRequestEvent = PullRequestEvent
 
 instance FromJSON PullRequestEvent where
   parseJSON (Object v) = PullRequestEvent <$> v .: "id" <*> (v .: "payload" >>= (.: "pull_request"))
+  parseJSON invalid = typeMismatch "PullRequestEvent" invalid
 
 data Event = Event
   { eventType :: !T.Text
@@ -61,6 +65,7 @@ data Event = Event
 
 instance FromJSON Event where
   parseJSON (Object v) = Event <$> v .: "type" <*> v .: "id"
+  parseJSON invalid = typeMismatch "Event" invalid
 
 data Pull = Pull
   { pullUrl :: !T.Text
@@ -76,6 +81,7 @@ instance FromJSON Pull where
     Pull <$> v .: "url" <*> v .: "number" <*> v .: "title" <*> v .: "created_at" <*>
     v .: "state" <*>
     v .: "base"
+  parseJSON invalid = typeMismatch "Pull" invalid
 
 data Github = Github
   { githubToken :: !GithubToken
@@ -99,9 +105,7 @@ data Poller a = Poller
   } deriving Show
 
 pollEvents :: Github -> Owner -> Maybe ETag -> IO (Poller [PullRequestEvent])
-pollEvents github@Github { githubToken = GithubToken token
-                         , githubManager = manager
-                         } (Owner owner) etag = do
+pollEvents Github {githubToken = GithubToken token, githubManager = manager} (Owner owner) etag = do
   let url = printf "https://api.github.com/users/%s/events" owner
   let authHeaders =
         [ ("User-Agent", T.encodeUtf8 "Ficktoberfest")

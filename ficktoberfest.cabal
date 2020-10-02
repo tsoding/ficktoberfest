@@ -18,6 +18,7 @@ build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
 executable ficktoberfest
+  ghc-options:         -threaded -Wall
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
