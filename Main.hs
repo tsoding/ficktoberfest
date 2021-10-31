@@ -199,13 +199,18 @@ resultToEither :: Result a -> Either String a
 resultToEither (Success x) = Right x
 resultToEither (Error s) = Left s
 
-mainWithArgs :: [String] -> IO ()
-mainWithArgs (tokenFile:_) = do
-  github <- newGithub tokenFile
+data Args = Args { argTokenFile :: String, argOwner :: Owner }
+
+parseArgs :: [String] -> Args
+parseArgs [] = error "Usage: ficktoberfest <tokenFile> [owner]"
+parseArgs [tokenFile'] = Args tokenFile' (Owner "tsoding")
+parseArgs (tokenFile:owner:_) = Args tokenFile (Owner $ T.pack owner)
+
+mainWithArgs :: Args -> IO ()
+mainWithArgs args = do
+  github <- newGithub $ argTokenFile args
   putStrLn "Waiting for Pull Requests..."
-  -- TODO(#7): The polling target is hardcoded
-  pollLoop github (Owner "tsoding") Nothing Nothing
-mainWithArgs _ = error "Usage: ficktoberfest <tokenFile>"
+  pollLoop github (argOwner args) Nothing Nothing
 
 main :: IO ()
-main = getArgs >>= mainWithArgs
+main = getArgs >>= mainWithArgs . parseArgs
