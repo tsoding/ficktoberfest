@@ -12,10 +12,9 @@ $ cabal v2-run exe:ficktoberfest <token-file>
 ```
 
 ### Stack
-
-TBD
-
-<!-- TODO(#6): Stack Quick Start section is not documented -->
+```console
+$ stack run -- <token-file>
+```
 
 ## Token File
 
