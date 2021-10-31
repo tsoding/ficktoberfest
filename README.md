@@ -8,7 +8,7 @@ A simple Haskell tool that silently marks all of the new PRs it receives via not
 
 ```console
 $ cabal v2-build
-$ cabal v2-run exe:ficktoberfest <token-file>
+$ cabal v2-run exe:ficktoberfest <token-file> [owner]
 ```
 
 ### Stack
@@ -16,6 +16,8 @@ $ cabal v2-run exe:ficktoberfest <token-file>
 TBD
 
 <!-- TODO(#6): Stack Quick Start section is not documented -->
+
+The owner is "tsoding" unless otherwise specified.
 
 ## Token File
 
